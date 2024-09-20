@@ -1,0 +1,108 @@
+<?php
+	include_once "../config/clsConnectionIntranet.php";
+	include_once "../objects/clsWeb_App.php";
+	
+	$database = new clsConnectionIntranet();
+	$db = $database->connect();
+
+	$web_app = new Web_App($db);
+	
+	$logo = $_POST['logo'];
+	$link = $_POST['link'];
+
+
+	//Determinie ACTION IF SAVE OR UPDATE, 0 if new and 1 if update
+	$action = 0;
+	$view = $slider->view();
+	if($row = $view->fetch(PDO::FETCH_ASSOC))
+	{
+		$action = 1;
+	}
+
+	$errors = array();
+	$uploadedFiles = array();
+	$extension = array("jpeg","jpg","png","gif");
+	$bytes = 1024;
+	$KB = 1024;
+	$totalBytes = $bytes * $KB;
+	$UploadFolder = "C:\wamp\www\innogroupv2\uploads\cover-photos";
+	
+	$counter = 0;
+
+	$msg="";
+	
+	foreach($_FILES["files"]["tmp_name"] as $key=>$tmp_name){
+		$temp = $_FILES["files"]["tmp_name"][$key];
+		$name = $_FILES["files"]["name"][$key];
+		
+		if(empty($temp))
+		{
+			break;
+		}
+		
+		$counter++;
+		$UploadOk = true;
+		
+		if($_FILES["files"]["size"][$key] > $totalBytes)
+		{
+			$UploadOk = false;
+			array_push($errors, $name." file size is larger than the 1 MB.");
+		}
+		
+		$ext = pathinfo($name, PATHINFO_EXTENSION);
+		if(in_array($ext, $extension) == false){
+			$UploadOk = false;
+			array_push($errors, $name." is invalid file type.");
+		}
+		
+		if(file_exists($UploadFolder."/".$name) == true){
+			$UploadOk = false;
+			array_push($errors, $name." file is already exist.");
+		}
+		
+		if($UploadOk == true){
+			move_uploaded_file($temp,$UploadFolder."/".$name);
+			array_push($uploadedFiles, $name);
+		}
+	}
+	
+	if($counter>0){
+		if(count($errors)>0)
+		{
+			$msg .= "Errors:";
+			foreach($errors as $error)
+			{
+				$msg .= $error;
+			}
+		}
+		
+		if(count($uploadedFiles)>0){
+			foreach($uploadedFiles as $fileName)
+			{
+				echo $fileName.", ";
+				$slider->title = $category_id;
+				$slider->feature_image_path = mysql_real_escape_string("uploads/" . $fileName);
+				$slider->feature_image_title = $category_id;
+				$slider->added_by =  '1';
+				$slider->date_created =  date('Y-m-d');	
+				$slider->status = '1';
+
+				if($action == '0')
+				{
+					$slider->save();
+				}
+				else
+				{
+					$slider->insert();
+				}
+			}
+			
+			echo count($uploadedFiles)." file(s) are successfully uploaded.";
+		}								
+	}
+	else{
+		$msg .= "Please, Select file(s) to upload.";
+	}
+
+	echo $msg;
+?>
